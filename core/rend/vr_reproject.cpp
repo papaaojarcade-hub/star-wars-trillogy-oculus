@@ -237,6 +237,12 @@ struct GameProfile
 	// The player's own model from the game, in a file of its own (hands_rip.h): the agent's
 	// hands and pistol, the hero's staff, or none (the arcade gun).
 	hands::Source model {};
+	// A game whose matrices move: its projection (a GL-style 4x4: x and y scale, -1 in the
+	// last row's z column) is looked for in RAM offsets [scanLo, scanHi), with the viewport
+	// matrix (scale 320, 240, centre 320, 240) viewportDelta bytes after it (see
+	// scanForMatrices). projAddr and viewportAddr are then filled in at run time.
+	bool scanMatrices = false;
+	u32 scanLo = 0, scanHi = 0, viewportDelta = 0;
 };
 
 static std::vector<GameProfile> makeProfiles()
@@ -346,6 +352,20 @@ static std::vector<GameProfile> makeProfiles()
 	p.model.file = "staff-mok.bin";
 	p.model.staff = { { { 0xC1C000, 0xCB0800 }, { 0xD87000, 0xDA9800 } } };
 	list.push_back(p);
+	// Star Wars Trilogy (fan-made Dreamcast game, IND-155164). Built with KallistiOS and GLdc,
+	// which does the 3D maths on the CPU and hands the GPU screen-space vertices. It chain-loads
+	// a program per part, and each keeps its GL state somewhere else in RAM, so the matrices
+	// are looked for at run time. Seen in RAM dumps: the projection (focal 2.05 to 3.24 in y) at
+	// 0x349CC0, 0x384020, 0x397E20 and 0x3D23A0, each with its viewport matrix (320, -240,
+	// centre 320, 240) 0xA0 bytes later. Its focal length is the same in x and y in pixels
+	// (e.g. 320 * 2.4314 = 240 * 3.2419 = 778). No view widening yet (fovScale 1), no hands model.
+	p = GameProfile();
+	p.gameId = "IND-155164";
+	p.scanMatrices = true;
+	p.scanLo = 0x340000;
+	p.scanHi = 0x400000;
+	p.viewportDelta = 0xA0;
+	list.push_back(p);
 	return list;
 }
 static const std::vector<GameProfile> profiles = makeProfiles();
@@ -434,6 +454,60 @@ static struct GameProfileRegistration
 		EventManager::listen(Event::Start, applyGameProfile);
 	}
 } gameProfileRegistration;
+
+// A GL-style perspective matrix at this RAM offset, with a viewport matrix (scale 320 and
+// 240 in either sign, centre 320, 240) viewportDelta bytes after it?
+static bool matricesAt(u32 proj, u32 viewportDelta)
+{
+	if (readFloat(proj + 11 * 4) != -1.f || readFloat(proj + 15 * 4) != 0.f)
+		return false;
+	const float sx = readFloat(proj), sy = readFloat(proj + 5 * 4), sz = readFloat(proj + 10 * 4);
+	if (!(sx > 0.1f && sx < 100.f && sy > 0.1f && sy < 100.f && sz < 0.f))
+		return false;
+	for (int i : { 1, 2, 3, 4, 6, 7, 8, 9, 12, 13 })
+		if (readFloat(proj + i * 4) != 0.f)
+			return false;
+	const u32 vp = proj + viewportDelta;
+	return std::abs(std::abs(readFloat(vp)) - 320.f) < 0.01f && std::abs(std::abs(readFloat(vp + 5 * 4)) - 240.f) < 0.01f
+			&& std::abs(readFloat(vp + 12 * 4) - 320.f) < 0.01f && std::abs(readFloat(vp + 13 * 4) - 240.f) < 0.01f;
+}
+
+// For a profile with scanMatrices: twice a second, check that the matrices found last time are
+// still there, and look for them when they aren't (a new part of the game was loaded).
+static void scanForMatrices(Event event, void *)
+{
+	static u32 frame;
+	const GameProfile *prof = activeProfile;
+	if (event == Event::Start)
+		frame = 0;
+	if (prof == nullptr || !prof->scanMatrices || !config::VrReproject || event == Event::Start)
+		return;
+	if (++frame % 30 != 0)
+		return;
+	if (config::VrProjAddr > 0 && matricesAt(config::VrProjAddr, prof->viewportDelta))
+		return;
+	for (u32 proj = prof->scanLo; proj + prof->viewportDelta + 16 * 4 <= prof->scanHi; proj += 4)
+	{
+		if (matricesAt(proj, prof->viewportDelta))
+		{
+			config::VrProjAddr.override((int)proj);
+			config::VrViewportAddr.override((int)(proj + prof->viewportDelta));
+			NOTICE_LOG(RENDERER, "VR: projection matrix at RAM %08x, viewport at %08x (focal %.1f x %.1f px)",
+					0x8C000000u + proj, 0x8C000000u + proj + prof->viewportDelta,
+					std::abs(readFloat(proj + prof->viewportDelta)) * readFloat(proj),
+					std::abs(readFloat(proj + prof->viewportDelta + 5 * 4)) * readFloat(proj + 5 * 4));
+			return;
+		}
+	}
+}
+
+static struct ScanMatricesRegistration
+{
+	ScanMatricesRegistration() {
+		EventManager::listen(Event::Start, scanForMatrices);
+		EventManager::listen(Event::VBlank, scanForMatrices);
+	}
+} scanMatricesRegistration;
 
 static bool widensByCode() {
 	return activeProfile != nullptr && activeProfile->fovPatch[0].offset != 0 && config::VrWidenFov;
