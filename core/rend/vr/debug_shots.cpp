@@ -14,6 +14,9 @@
 #include <stb_image_write.h>
 
 #include <cstdio>
+#include <cstdlib>
+#include "hw/sh4/sh4_mem.h"
+#include "hw/pvr/pvr_mem.h"
 #include <vector>
 
 namespace vr
@@ -35,6 +38,24 @@ void onEvent(Event event, void *)
 		startedAt = gameSeconds();
 		lastShot = -1;
 		return;
+	}
+	// PC test aid: with the environment variable SWTA_DUMP=N, main RAM (ram_<s>.bin) and VRAM
+	// (vram_<s>.bin) are written to the data directory every N seconds of game time, to find a
+	// new game's projection matrices by comparing dumps.
+	if (const char *d = getenv("SWTA_DUMP"))
+	{
+		static int lastDump = -1;
+		const int dumpEvery = atoi(d);
+		const int k = dumpEvery > 0 ? (int)((gameSeconds() - startedAt) / dumpEvery) : -1;
+		if (k >= 0 && k != lastDump)
+		{
+			lastDump = k;
+			char nm[64];
+			snprintf(nm, sizeof(nm), "ram_%04d.bin", k * dumpEvery);
+			if (FILE *fo = fopen(get_writable_data_path(nm).c_str(), "wb")) { fwrite(&mem_b[0], 1, 16 * 1024 * 1024, fo); fclose(fo); }
+			snprintf(nm, sizeof(nm), "vram_%04d.bin", k * dumpEvery);
+			if (FILE *fo = fopen(get_writable_data_path(nm).c_str(), "wb")) { fwrite(&vram[0], 1, 8 * 1024 * 1024, fo); fclose(fo); }
+		}
 	}
 	const int every = config::VrDebugShots;
 	if (every <= 0)
