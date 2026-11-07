@@ -121,11 +121,12 @@ public final class VrGames
         }
     }
 
-    /** The House of the Dead by its name, else whatever there is. */
+    /** The Star Wars Trilogy fan game (or The House of the Dead) by its name, else whatever there is. */
     private static int score(File f)
     {
         String name = f.getName().toLowerCase(Locale.ROOT);
-        return name.contains("house of the dead") || name.contains("hotd") ? 1 : 0;
+        return name.contains("swta") || name.contains("star wars") || name.contains("house of the dead")
+                || name.contains("hotd") ? 1 : 0;
     }
 
     /** An arcade set's title, when it is one the mod knows and its GD-ROM is next to it. */
@@ -155,6 +156,9 @@ public final class VrGames
         // "House of the Dead 2, The" -> "The House of the Dead 2"
         if (name.endsWith(", The"))
             name = "The " + name.substring(0, name.length() - 5);
+        // the fan game's disc image is called swta_demo.cdi or the like
+        if (name.toLowerCase(Locale.ROOT).startsWith("swta"))
+            return "Star Wars Trilogy (fan demo)";
         return name.isEmpty() ? f.getName() : name;
     }
 
@@ -189,7 +193,7 @@ public final class VrGames
             }
             discs.add(f);
         }
-        // The House of the Dead first, then the rest
+        // The Star Wars Trilogy game first, then the rest
         discs.sort((a, b) -> score(b) - score(a));
         List<Game> games = new ArrayList<>();
         for (File f : discs)

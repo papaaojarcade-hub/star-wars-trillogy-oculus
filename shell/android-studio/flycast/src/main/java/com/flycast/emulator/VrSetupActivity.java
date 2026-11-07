@@ -54,7 +54,7 @@ public class VrSetupActivity extends Activity
         page.setPadding(dp(36), dp(28), dp(36), dp(28));
         page.setBackgroundColor(BACK);
 
-        TextView title = text("THE HOUSE OF THE DEAD 2 VR", 28, RED);
+        TextView title = text("STAR WARS TRILOGY VR", 28, RED);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         page.addView(title);
         page.addView(text("Two steps before the first game.", 17, SOFT), spaced(4));
@@ -76,9 +76,11 @@ public class VrSetupActivity extends Activity
         games.setOrientation(LinearLayout.VERTICAL);
         page.addView(games, spaced(20));
 
-        page.addView(text("Your own copies of the games: The House of the Dead 2 (European or US version) and The "
-                + "Maze of the Kings (arcade, as a MAME set: mok.zip with the folder mok next to it). Nothing of the "
-                + "games comes with this app. Unofficial fan project, not affiliated with Sega.", 13, SOFT), spaced(22));
+        page.addView(text("The game is the fan-made Dreamcast Star Wars Trilogy demo (disc image as .cdi, .gdi, .chd or "
+                + ".cue). It needs a Dreamcast BIOS: copy dc_boot.bin (and dc_flash.bin if you have it) into the "
+                + "folder data inside this app's files folder (Android/data/com.flycast.emulator.swta.vr/files/data). "
+                + "Nothing of the game or the BIOS comes with this app. Unofficial fan project, not affiliated with "
+                + "Lucasfilm or Sega.", 13, SOFT), spaced(22));
 
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(BACK);

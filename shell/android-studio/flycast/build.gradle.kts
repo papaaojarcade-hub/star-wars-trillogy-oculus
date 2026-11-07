@@ -80,7 +80,7 @@ android {
             ndk {
                 abiFilters += "arm64-v8a"
             }
-            applicationIdSuffix = ".vr"
+            applicationIdSuffix = ".swta.vr"   // swta: its own app next to HOTD2 VR; keep the ".vr" ending (BaseGLActivity)
             versionNameSuffix = "-vr"
         }
     }
