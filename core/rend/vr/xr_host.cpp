@@ -1464,18 +1464,11 @@ void updateLightgun(XrTime time)
 		if (dpad & 64)
 			pressed |= DC_DPAD_RIGHT;
 		setPad(pressed, sizing ? glm::vec2(0.f) : stick);
-		// what it sees, to tell whether the controllers reach the pad (adb logcat | findstr "XR pad")
-		static u32 lastPressed = ~0u;
 		static bool logged;
 		if (!logged)
 		{
 			logged = true;
 			NOTICE_LOG(INPUT, "XR pad: driving port A (device type %d, focused %d)", (int)config::MapleMainDevices[0], (int)focused);
-		}
-		if (pressed != lastPressed)
-		{
-			lastPressed = pressed;
-			NOTICE_LOG(INPUT, "XR pad: buttons %05x stick %.2f %.2f, kcode now %08x", pressed, stick.x, stick.y, mapleInputState[0].kcode);
 		}
 		return;
 	}
