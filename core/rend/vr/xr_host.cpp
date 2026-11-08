@@ -41,7 +41,7 @@
 #include "hw/pvr/ta_ctx.h"
 #include "input/udp_lightgun.h"
 #include "input/gamepad.h"
-#include "hw/maple/maple_cfg.h"
+#include "input/gamepad_device.h"
 #include "cfg/option.h"
 #include "cfg/cfg.h"
 #include "stdclass.h"
@@ -1342,17 +1342,24 @@ void updateGun(Gun& g, XrTime time, const XrSpaceLocation *locations, const bool
 // as with a gun.
 static void setPad(u32 pressed, const glm::vec2& stick)
 {
-	MapleInputState& state = mapleInputState[0];
-	state.kcode = ~pressed;
+	// Not mapleInputState: it is rebuilt from these arrays every frame (ggpo getLocalInput), as
+	// from a real gamepad's.
+	kcode[0] = ~pressed;
 	auto axis = [](float v) {
 		const float dead = 0.15f;
 		if (std::fabs(v) < dead)
-			return (int16_t)0;
+			return (s16)0;
 		v = (std::fabs(v) - dead) / (1.f - dead) * (v < 0.f ? -1.f : 1.f);
-		return (int16_t)(glm::clamp(v, -1.f, 1.f) * 32767.f);
+		return (s16)(glm::clamp(v, -1.f, 1.f) * 32767.f);
 	};
-	state.fullAxes[PJAI_X1] = axis(stick.x);
-	state.fullAxes[PJAI_Y1] = axis(-stick.y);	// up on the stick is negative on the pad
+	joyx[0] = axis(stick.x);
+	joyy[0] = axis(-stick.y);	// up on the stick is negative on the pad
+	static u32 last = ~0u;
+	if (pressed != last)
+	{
+		last = pressed;
+		NOTICE_LOG(INPUT, "XR pad: buttons %05x stick %.2f %.2f", pressed, stick.x, stick.y);
+	}
 }
 
 void updateLightgun(XrTime time)
