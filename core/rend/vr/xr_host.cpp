@@ -1363,6 +1363,34 @@ static void setPad(u32 pressed, const glm::vec2& stick)
 	}
 }
 
+// A pad game with a light gun mode of its own (the game's Settings): the left grip and X held
+// together for 2 s plug a light gun into port A (the right controller aims it, as in the other games)
+// or put the pad back.
+static bool gunMode;
+static void setGunMode(bool on)
+{
+	static MapleDeviceType padDevice;
+	if (on == gunMode)
+		return;
+	if (on)
+	{
+		padDevice = config::MapleMainDevices[0];
+		config::MapleMainDevices[0].override(MDT_LightGun);
+		setPad(0, glm::vec2(0.f));
+	}
+	else
+	{
+		config::MapleMainDevices[0].override(padDevice);
+		lightgunSet(0, OffScreen, OffScreen, 0);
+	}
+	gunMode = on;
+	mcfg_DestroyDevices();
+	mcfg_CreateDevices();
+	haptic(Left, on ? 0.3f : 0.08f, 0.8f);
+	guns[0].triggerWas = true;	// a trigger still held doesn't fire
+	NOTICE_LOG(INPUT, "XR pad: port A is a %s", on ? "light gun" : "pad");
+}
+
 void updateLightgun(XrTime time)
 {
 	for (Gun& g : guns)
@@ -1378,6 +1406,7 @@ void updateLightgun(XrTime time)
 		guns[0].triggerWas = true;
 		slide.held = false;
 		leftStartWas = true;	// a left Start still held doesn't join at once
+		gunMode = false;	// the devices were made again for the new game
 	}
 	// The game runs itself to its game over scene for the agent's hands, or its attract demo
 	// for the hero's staff (hands_rip.h): its buttons are its own then.
@@ -1385,7 +1414,7 @@ void updateLightgun(XrTime time)
 	if (!focused)
 	{
 		// headset menu or app in the background: let go of everything
-		if (vr::padGame())
+		if (vr::padGame() && !gunMode)
 			setPad(0, glm::vec2(0.f));
 		if (!preparing)
 			for (const Gun& g : guns)
@@ -1414,7 +1443,8 @@ void updateLightgun(XrTime time)
 		return;
 	}
 
-	const bool recenter = boolAction(recenterAction);
+	const bool comboHeld = vr::padGame() && floatAction(gripAction, Left) > 0.7f;
+	const bool recenter = boolAction(recenterAction) && !comboHeld;
 	if (recenter && !recenterWas)
 		recenterRequested = true;
 	recenterWas = recenter;
@@ -1448,6 +1478,20 @@ void updateLightgun(XrTime time)
 	const bool sizing = adjustWorldSize(time, stick);
 	const u32 dpad = sizing ? dpadFromStick(glm::vec2(0.f)) : dpadFromStick(stick);
 	if (vr::padGame())
+	{
+		static XrTime comboSince;
+		static bool comboDone;
+		if (!(comboHeld && boolAction(recenterAction)))
+			comboSince = 0, comboDone = false;
+		else if (comboSince == 0)
+			comboSince = time;
+		else if (!comboDone && time - comboSince > 2'000'000'000LL)
+		{
+			comboDone = true;
+			setGunMode(!gunMode);
+		}
+	}
+	if (vr::padGame() && !gunMode)
 	{
 		// The Supermodel VR scheme for flight-stick games: by default the right controller is
 		// pointed at the screen to steer (the screen edge is full stick), the right trigger fires;

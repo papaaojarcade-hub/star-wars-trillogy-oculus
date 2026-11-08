@@ -47,6 +47,10 @@ The focal length comes out at 492.1 px in x and y.
   steer (screen edge = full stick, aim range 0.5, dead zone 0.08), right trigger = A (fire, select),
   B or Y = B (back), Start = Start. Hold the left trigger for 0.6 s to switch to thumbstick steering
   and back (short buzz = pointing, long = thumbstick). The thumbstick is also the D-pad in menus.
+  Light gun mode (for the game's gun sections, switched on in its Settings): hold the left grip and
+  X (or the left thumbstick click) together for 2 s to plug a light gun into port A, which the
+  right controller aims; do it again for the pad. Run the game's gun calibration once. The device
+  swap mid-game is untested.
   Not run on a headset; X, Y and the pad's triggers aren't mapped, and whether the game moves its
   reticle by stick position or speed may need tuning.
 - Only the menus and the start of a level were checked; other parts may keep the matrices elsewhere.
