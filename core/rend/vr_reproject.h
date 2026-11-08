@@ -46,6 +46,10 @@ bool widensGameFov();
 // widened field of view, code patches and pokes), for the two sides to check they match.
 void netplayDigest(MD5Sum& md5);
 
+// The active game is played with a normal pad, not a light gun: port A keeps a controller (the
+// headset's controllers drive it, see vr/xr_host.cpp updatePad) and no gun is plugged in.
+bool padGame();
+
 // The comfort zone's parameters for the headset (vr.WorldScale, vr.ComfortStart,
 // vr.ComfortMin), or zero when it is switched off.
 glm::vec3 comfortParams();

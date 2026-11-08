@@ -41,7 +41,11 @@ The focal length comes out at 492.1 px in x and y.
 ## Not done / not tested
 
 - Not run on a headset.
-- No view widening (`fovScale` 1) and no hands model; the aim is the generic arcade gun.
+- No view widening (`fovScale` 1) and no hands model.
+- It is a pad game (`usesPad` in its profile), so port A keeps a normal controller and the Quest
+  controllers drive it: either trigger = A (fire, select), B or Y = B (back), Start = Start,
+  thumbstick = analog stick and D-pad (menus), recenter and the world-size gesture as with a gun.
+  Not run on a headset, and the other Dreamcast buttons (X, Y, the triggers) aren't mapped yet.
 - Only the menus and the start of a level were checked; other parts may keep the matrices elsewhere.
 
 ## Finding the matrices in another part (PC)

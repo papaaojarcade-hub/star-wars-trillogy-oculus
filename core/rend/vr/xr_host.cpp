@@ -40,6 +40,8 @@
 #include "hw/pvr/Renderer_if.h"
 #include "hw/pvr/ta_ctx.h"
 #include "input/udp_lightgun.h"
+#include "input/gamepad.h"
+#include "hw/maple/maple_cfg.h"
 #include "cfg/option.h"
 #include "cfg/cfg.h"
 #include "stdclass.h"
@@ -1334,6 +1336,25 @@ void updateGun(Gun& g, XrTime time, const XrSpaceLocation *locations, const bool
 	lightgunSet(g.player, pos.x, pos.y, buttons);
 }
 
+// A game played with a normal pad (vr::padGame): the headset's controllers drive the pad in port
+// A. Either trigger: A (fire, select), B or Y: B (back), Start: Start, the thumbstick: the analog
+// stick and the D-pad (menus). Recenter (X, left thumbstick click) and the world size gesture work
+// as with a gun.
+static void setPad(u32 pressed, const glm::vec2& stick)
+{
+	MapleInputState& state = mapleInputState[0];
+	state.kcode = ~pressed;
+	auto axis = [](float v) {
+		const float dead = 0.15f;
+		if (std::fabs(v) < dead)
+			return (int16_t)0;
+		v = (std::fabs(v) - dead) / (1.f - dead) * (v < 0.f ? -1.f : 1.f);
+		return (int16_t)(glm::clamp(v, -1.f, 1.f) * 32767.f);
+	};
+	state.fullAxes[PJAI_X1] = axis(stick.x);
+	state.fullAxes[PJAI_Y1] = axis(-stick.y);	// up on the stick is negative on the pad
+}
+
 void updateLightgun(XrTime time)
 {
 	for (Gun& g : guns)
@@ -1356,6 +1377,8 @@ void updateLightgun(XrTime time)
 	if (!focused)
 	{
 		// headset menu or app in the background: let go of everything
+		if (vr::padGame())
+			setPad(0, glm::vec2(0.f));
 		if (!preparing)
 			for (const Gun& g : guns)
 				lightgunSet(g.player, OffScreen, OffScreen, 0);
@@ -1414,7 +1437,28 @@ void updateLightgun(XrTime time)
 	}
 	laserWas = laser;
 	const glm::vec2 stick = stickAction2();
-	const u32 dpad = adjustWorldSize(time, stick) ? dpadFromStick(glm::vec2(0.f)) : dpadFromStick(stick);
+	const bool sizing = adjustWorldSize(time, stick);
+	const u32 dpad = sizing ? dpadFromStick(glm::vec2(0.f)) : dpadFromStick(stick);
+	if (vr::padGame())
+	{
+		u32 pressed = 0;
+		if (floatAction(triggerAction, Left) > 0.5f || floatAction(triggerAction, Right) > 0.5f)
+			pressed |= DC_BTN_A;
+		if (boolAction(skipAction))
+			pressed |= DC_BTN_B;
+		if (boolAction(startAction))
+			pressed |= DC_BTN_START;
+		if (dpad & 8)
+			pressed |= DC_DPAD_UP;
+		if (dpad & 16)
+			pressed |= DC_DPAD_DOWN;
+		if (dpad & 32)
+			pressed |= DC_DPAD_LEFT;
+		if (dpad & 64)
+			pressed |= DC_DPAD_RIGHT;
+		setPad(pressed, sizing ? glm::vec2(0.f) : stick);
+		return;
+	}
 
 	const XrSpaceLocationFlags valid = XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
 	XrSpaceLocation locations[2] { { XR_TYPE_SPACE_LOCATION }, { XR_TYPE_SPACE_LOCATION } };

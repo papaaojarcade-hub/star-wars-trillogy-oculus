@@ -243,6 +243,9 @@ struct GameProfile
 	// scanForMatrices). projAddr and viewportAddr are then filled in at run time.
 	bool scanMatrices = false;
 	u32 scanLo = 0, scanHi = 0, viewportDelta = 0;
+	// Played with a normal pad (a console game that isn't a light gun game): port A keeps its
+	// controller instead of becoming a light gun, and the headset's controllers drive the pad.
+	bool usesPad = false;
 };
 
 static std::vector<GameProfile> makeProfiles()
@@ -365,6 +368,7 @@ static std::vector<GameProfile> makeProfiles()
 	p.scanLo = 0x340000;
 	p.scanHi = 0x400000;
 	p.viewportDelta = 0xA0;
+	p.usesPad = true;	// a pad game: the aim and fire are on the pad
 	list.push_back(p);
 	return list;
 }
@@ -382,8 +386,16 @@ const hands::Source *gameModelSource()
 static u32 markerTextures[4];	// the active profile's GameProfile::markerTextures
 static u32 p2PromptTextures[4];	// ...and GameProfile::p2PromptTextures
 
+static bool padGameActive;	// the active profile's GameProfile::usesPad
+
+bool padGame()
+{
+	return padGameActive;
+}
+
 static void applyGameProfile(Event, void *)
 {
+	padGameActive = false;
 	std::fill(std::begin(fovLiterals), std::end(fovLiterals), 0u);
 	std::fill(std::begin(markerTextures), std::end(markerTextures), 0u);
 	std::fill(std::begin(p2PromptTextures), std::end(p2PromptTextures), 0u);
@@ -404,6 +416,7 @@ static void applyGameProfile(Event, void *)
 		if (settings.content.gameId != prof.gameId)
 			continue;
 		activeProfile = &prof;
+		padGameActive = prof.usesPad;
 		if (config::VrProjAddr == 0)
 			config::VrProjAddr.override(prof.projAddr);
 		if (config::VrViewportAddr == 0)
@@ -429,7 +442,7 @@ static void applyGameProfile(Event, void *)
 		std::copy(std::begin(prof.markerTextures), std::end(prof.markerTextures), std::begin(markerTextures));
 		std::copy(std::begin(prof.p2PromptTextures), std::end(prof.p2PromptTextures), std::begin(p2PromptTextures));
 		const bool gunB = config::VrDualWield || netplay;
-		if (((xr::enabled() && config::VrXrGun) || netplay) && settings.platform.isConsole()
+		if (((xr::enabled() && config::VrXrGun) || netplay) && settings.platform.isConsole() && !prof.usesPad
 				&& (config::MapleMainDevices[0] != MDT_LightGun || (gunB && config::MapleMainDevices[1] != MDT_LightGun)))
 		{
 			// The right controller is a light gun: plug one into port A (a pad ignores
