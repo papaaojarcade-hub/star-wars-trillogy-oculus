@@ -42,10 +42,13 @@ The focal length comes out at 492.1 px in x and y.
 
 - Not run on a headset.
 - No view widening (`fovScale` 1) and no hands model.
-- It is a pad game (`usesPad` in its profile), so port A keeps a normal controller and the Quest
-  controllers drive it: either trigger = A (fire, select), B or Y = B (back), Start = Start,
-  thumbstick = analog stick and D-pad (menus), recenter and the world-size gesture as with a gun.
-  Not run on a headset, and the other Dreamcast buttons (X, Y, the triggers) aren't mapped yet.
+- It is a pad game (`usesPad`), so port A keeps a normal controller and the Quest controllers drive
+  it, with the scheme from the Supermodel VR port: point the right controller at the screen to
+  steer (screen edge = full stick, aim range 0.5, dead zone 0.08), right trigger = A (fire, select),
+  B or Y = B (back), Start = Start. Hold the left trigger for 0.6 s to switch to thumbstick steering
+  and back (short buzz = pointing, long = thumbstick). The thumbstick is also the D-pad in menus.
+  Not run on a headset; X, Y and the pad's triggers aren't mapped, and whether the game moves its
+  reticle by stick position or speed may need tuning.
 - Only the menus and the start of a level were checked; other parts may keep the matrices elsewhere.
 
 ## Finding the matrices in another part (PC)

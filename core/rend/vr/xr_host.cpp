@@ -1337,8 +1337,9 @@ void updateGun(Gun& g, XrTime time, const XrSpaceLocation *locations, const bool
 }
 
 // A game played with a normal pad (vr::padGame): the headset's controllers drive the pad in port
-// A. Either trigger: A (fire, select), B or Y: B (back), Start: Start, the thumbstick: the analog
-// stick and the D-pad (menus). Recenter (X, left thumbstick click) and the world size gesture work
+// A. Right trigger: A (fire, select), B or Y: B (back), Start: Start, the analog stick: where the
+// right controller points (or the thumbstick; hold the left trigger to switch), the thumbstick also
+// the D-pad (menus). Recenter (X, left thumbstick click) and the world size gesture work
 // as with a gun.
 static void setPad(u32 pressed, const glm::vec2& stick)
 {
@@ -1448,8 +1449,31 @@ void updateLightgun(XrTime time)
 	const u32 dpad = sizing ? dpadFromStick(glm::vec2(0.f)) : dpadFromStick(stick);
 	if (vr::padGame())
 	{
+		// The Supermodel VR scheme for flight-stick games: by default the right controller is
+		// pointed at the screen to steer (the screen edge is full stick), the right trigger fires;
+		// holding the left trigger ~0.6 s switches to the thumbstick and back, with a buzz (long =
+		// thumbstick). Menus still take the thumbstick as a D-pad.
+		static bool thumbMode;
+		static XrTime heldSince;
+		static bool toggled;
+		const float aimRange = 0.5f;		// Supermodel's VRStickAimRange
+		const float deadZone = 0.08f;		// VRStickDeadZone
+		const XrTime holdNs = 600'000'000LL;	// VRSaberHoldMs
+		const float leftPull = floatAction(triggerAction, Left);
+		if (leftPull < 0.6f)
+			heldSince = 0, toggled = false;
+		else if (heldSince == 0)
+			heldSince = time;
+		else if (!toggled && time - heldSince > holdNs)
+		{
+			toggled = true;
+			thumbMode = !thumbMode;
+			haptic(Left, thumbMode ? 0.3f : 0.08f, 0.8f);
+			NOTICE_LOG(INPUT, "XR pad: steering with the %s", thumbMode ? "thumbstick" : "pointing hand");
+		}
+
 		u32 pressed = 0;
-		if (floatAction(triggerAction, Left) > 0.5f || floatAction(triggerAction, Right) > 0.5f)
+		if (floatAction(triggerAction, Right) > 0.5f)
 			pressed |= DC_BTN_A;
 		if (boolAction(skipAction))
 			pressed |= DC_BTN_B;
@@ -1463,7 +1487,39 @@ void updateLightgun(XrTime time)
 			pressed |= DC_DPAD_LEFT;
 		if (dpad & 64)
 			pressed |= DC_DPAD_RIGHT;
-		setPad(pressed, sizing ? glm::vec2(0.f) : stick);
+
+		glm::vec2 steer = sizing ? glm::vec2(0.f) : stick;
+		if (!thumbMode)
+		{
+			steer = glm::vec2(0.f);
+			XrSpaceLocation loc { XR_TYPE_SPACE_LOCATION };
+			const XrSpaceLocationFlags ok = XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
+			if (originSet && XR_SUCCEEDED(xrLocateSpace(aimSpaces[Right], localSpace, time, &loc)) && (loc.locationFlags & ok) == ok)
+			{
+				const glm::quat rot = relativeRotation(loc.pose.orientation);
+				const glm::vec3 o = relativePosition(loc.pose.position);
+				const glm::vec3 d = rot * glm::vec3(0, 0, -1);
+				const float ws = worldScale();
+				const glm::vec3 og = glm::vec3(o.x, -o.y, o.z) / ws;
+				const glm::vec3 dg = glm::normalize(glm::vec3(d.x, -d.y, d.z));
+				glm::vec2 screen(-1.f);
+				float dist = -1.f;
+				bool onScreen = false;
+				const rend_context *ctx = gles_vr_frame();
+				if (gles_vr_showing_framebuffer())
+					onScreen = aimAtFlatScreen(og, dg, screen, dist);
+				else if (ctx != nullptr)
+					onScreen = aimAtScene(*ctx, og, dg, screen, dist);
+				if (onScreen)
+				{
+					steer = glm::vec2((screen.x - 0.5f) / aimRange, (0.5f - screen.y) / aimRange);
+					steer = glm::clamp(steer, glm::vec2(-1.f), glm::vec2(1.f));
+					if (std::fabs(steer.x) < deadZone) steer.x = 0.f;
+					if (std::fabs(steer.y) < deadZone) steer.y = 0.f;
+				}
+			}
+		}
+		setPad(pressed, steer);
 		static bool logged;
 		if (!logged)
 		{
