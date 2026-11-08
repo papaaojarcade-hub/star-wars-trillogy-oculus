@@ -78,7 +78,7 @@ public class VrSetupActivity extends Activity
 
         page.addView(text("The game is the fan-made Dreamcast Star Wars Trilogy demo (disc image as .cdi, .gdi, .chd or "
                 + ".cue). It needs a Dreamcast BIOS: copy dc_boot.bin (and dc_flash.bin if you have it) into the "
-                + "folder data inside this app's files folder (Android/data/com.flycast.emulator.swta.vr/files/data). "
+                + "headset's Download folder, next to the game. "
                 + "Nothing of the game or the BIOS comes with this app. Unofficial fan project, not affiliated with "
                 + "Lucasfilm or Sega.", 13, SOFT), spaced(22));
 

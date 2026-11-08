@@ -115,6 +115,25 @@ std::string getArcadeFlashPath()
 		return get_game_save_prefix();
 }
 
+// The headset's Download folder as a last-resort place for BIOS files (dc_boot.bin, dc_flash.bin...).
+// The app's own folder in Android/data can't be written to by file managers or the headset's
+// file browser since Android 11, but Download can (the app has "all files access" for the games).
+static std::string findInDownloadFolder(const std::string& name)
+{
+#ifdef __ANDROID__
+	for (const char *dir : { "/storage/emulated/0/Download/", "/sdcard/Download/" })
+	{
+		std::string fullpath = std::string(dir) + name;
+		try {
+			if (hostfs::storage().exists(fullpath))
+				return fullpath;
+		} catch (const hostfs::StorageException& e) {
+		}
+	}
+#endif
+	return "";
+}
+
 std::string findFlash(const std::string& prefix, const std::string& names)
 {
 	const size_t npos = std::string::npos;
@@ -142,6 +161,10 @@ std::string findFlash(const std::string& prefix, const std::string& names)
 		// Then check default paths
 		std::string fullpath = get_readonly_data_path(name);
 		if (hostfs::storage().exists(fullpath))
+			return fullpath;
+		// ... the Download folder (Android)
+		fullpath = findInDownloadFolder(name);
+		if (!fullpath.empty())
 			return fullpath;
 		for (const auto& path : config::ContentPath.get())
 		{
@@ -182,6 +205,9 @@ std::string findNaomiBios(const std::string& name)
 	// Then check default paths
 	std::string fullpath = get_readonly_data_path(name);
 	if (hostfs::storage().exists(fullpath))
+		return fullpath;
+	fullpath = findInDownloadFolder(name);
+	if (!fullpath.empty())
 		return fullpath;
 	for (const auto& path : config::ContentPath.get())
 	{

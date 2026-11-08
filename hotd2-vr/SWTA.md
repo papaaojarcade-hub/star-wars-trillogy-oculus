@@ -16,8 +16,10 @@ The app installs as **SW Trilogy VR** (`com.flycast.emulator.swta.vr`), next to 
 
 1. Sideload the APK (SideQuest, or `adb install -r flycast-vr.apk`).
 2. Copy the disc image (`swta_demo.cdi`) to the headset's `Download` folder.
-3. Copy a Dreamcast BIOS, `dc_boot.bin` (and `dc_flash.bin` if you have it), to
-   `Android/data/com.flycast.emulator.swta.vr/files/data/`.
+3. Copy a Dreamcast BIOS, `dc_boot.bin` (and `dc_flash.bin` if you have it), to the same `Download`
+   folder. (Since Android 11 file managers can't write into `Android/data/<app>/`; if you prefer that
+   folder, `adb push` can, as `.../files/data/dc_boot.bin`.) The app looks in its own data folder
+   first, then in `Download`.
    **The BIOS is needed**: with Flycast's built-in replacement the demo stops after a few seconds.
 4. Start the app from the Unknown Sources library, allow file access when asked, and press Play.
 
