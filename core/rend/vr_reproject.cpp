@@ -369,6 +369,10 @@ static std::vector<GameProfile> makeProfiles()
 	p.scanHi = 0x400000;
 	p.viewportDelta = 0xA0;
 	p.usesPad = true;	// a pad game: the aim and fire are on the pad
+	// Widen the view: the game draws its 3D picture inside a narrow frame, whose edge shows in the
+	// headset. widenGameView divides the viewport scale by this (the game then draws and culls
+	// more of the world), the headset view is rebuilt from the focal length it ends up with.
+	p.fovScale = 1.6f;
 	list.push_back(p);
 	return list;
 }
@@ -480,8 +484,11 @@ static bool matricesAt(u32 proj, u32 viewportDelta)
 	for (int i : { 1, 2, 3, 4, 6, 7, 8, 9, 12, 13 })
 		if (readFloat(proj + i * 4) != 0.f)
 			return false;
+	// The viewport: its centre is the screen's (320, 240) and its scales 4:3, 320 x 240 as the game
+	// sets them, or smaller once the view has been widened (widenGameView divides both by vr.FovScale).
 	const u32 vp = proj + viewportDelta;
-	return std::abs(std::abs(readFloat(vp)) - 320.f) < 0.01f && std::abs(std::abs(readFloat(vp + 5 * 4)) - 240.f) < 0.01f
+	const float vx = std::abs(readFloat(vp)), vy = std::abs(readFloat(vp + 5 * 4));
+	return vx > 40.f && vx < 320.01f && vy > 30.f && vy < 240.01f && std::abs(vx / vy - 4.f / 3.f) < 0.01f
 			&& std::abs(readFloat(vp + 12 * 4) - 320.f) < 0.01f && std::abs(readFloat(vp + 13 * 4) - 240.f) < 0.01f;
 }
 
